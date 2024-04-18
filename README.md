@@ -33,7 +33,7 @@
   - [NAT](#nat)
     - [SNAT](#snat)
     - [DNAT](#dnat)
-    - [PAT](#pat)
+    - [PAT (NAT Overload)](#pat-nat-overload)
     - [Troubleshooting NAT](#troubleshooting-nat)
   - [DHCP Server](#dhcp-server)
     - [Troubleshooting DHCP](#troubleshooting-dhcp)
@@ -391,23 +391,12 @@ Default mask for standard ACLs: 0.0.0.0
 
 ## NAT
 
-Local addresses are any address as it appears inside the network. Global addresses are any address as it appears outside the network.
-
-| Term           | Definition                                                                 |
-| :------------- | :------------------------------------------------------------------------- |
-| inside local   | IP address assigned to a host inside the network, non-routable             |
-| inside global  | IP address assigned by Network Information Center or ISP, routable         |
-| outside local  | IP address of a remote host as it appears inside the network, non-routable |
-| outside global | IP address of a remote host assigned by the host owner, routable           |
-
-| Command                                          | Description                                                          |
-| :----------------------------------------------- | :------------------------------------------------------------------- |
-| (config)# int g1/1                               | Enter if-config mode for g1/1                                        |
-| (config-if)# ip address 1.2.3.4 255.255.255.240  | configure 1.2.3.4/28 on g1/1                                         |
-| (config-if)# ip nat outside                      | Packets going out, need to change their src, incoming their dest ip. |
-| (config)# int g1/2                               | Enter if-config mode for g1/2                                        |
-| (config-if)# ip address 10.10.23.1 255.255.255.0 | configure 10.10.23.1/24 on g1/2                                      |
-| (config-if)# ip nat inside                       | Packets going out, need to change their dest, incoming their src ip. |
+| Command                     | Description                          |
+| :-------------------------- | :----------------------------------- |
+| (config)# int g1/2          | Enter if-config mode for g1/2        |
+| (config-if)# ip nat inside  | Define the interface inside the LAN  |
+| (config)# int g1/1          | Enter if-config mode for g1/1        |
+| (config-if)# ip nat outside | Define the interface outside the LAN |
 
 ### SNAT
 
@@ -417,20 +406,13 @@ Local addresses are any address as it appears inside the network. Global address
 
 ### DNAT
 
-| Command                                                             | Description                                                  |
-| :------------------------------------------------------------------ | :----------------------------------------------------------- |
-| (config)# access-list 42 permit 10.10.23.0 0.0.0.255                | Create an ACL identifying 10.10.23/24                        |
-| (config)# ip nat pool POOL 1.2.3.5 1.2.3.10 netmask 255.255.255.240 | Create an IP Address Pool for NATing                         |
-| (config)# ip nat inside source list 42 pool POOL                    | DNAT IPs matching ACL #42 1:1 with IPs from nat pool 'POOL'. |
+| Command                                                               | Description                                                                                     |
+| :-------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| (config)# access-list 42 permit 10.10.23.0 0.0.0.255                  | Create an ACL to permit IPs to get natted. If no match, no natting. (packets don't get dropped) |
+| (config)# ip nat pool mypool 1.2.3.5 1.2.3.10 netmask 255.255.255.240 | Create an IP Address Pool for NATing                                                            |
+| (config)# ip nat inside source list 42 pool mypool                    | DNAT IPs matching ACL #42 1:1 with IPs from nat pool 'POOL'.                                    |
 
-Note the missing overload.
-
-### PAT
-
-The overload keyword means, that one or a couple of external IPs are to be used for multiple
-internal IPs. Higher level information like connection port numbers are used to identify the
-correct internal destination for incoming packets. Cisco calls this PAT, while this is what your
-average joes home router would call NAT.
+### PAT (NAT Overload)
 
 | Command                                                        | Description                                          |
 | :------------------------------------------------------------- | :--------------------------------------------------- |
@@ -446,8 +428,6 @@ average joes home router would call NAT.
 | # clear ip nat translation {ip, \*} | Clear dynamic translations. Doesn't mess with SNAT!                             |
 | # debug ip nat [detailed]           |                                                                                 |
 
-Is the ACL correct? Is there a route to the address?
-Note: NAT Table entries are kept for 24h after the last use by default.
 
 ## DHCP Server
 
@@ -667,17 +647,21 @@ Note: flash: is the main flash memory on all iOS devices
 
 ### Syslog
 
-| Command                      | Description                                    |
-| :--------------------------- | :--------------------------------------------- |
-| # logging 10.20.30.40        | Log to this syslog server (name or ip)         |
-| # logging trap informational | Only log messages with min. informational sev. |
-
-service sequence-number | Needed for seqence number in syslog messages
-service time stamps log [datetime, log] | Needed for date and time in syslog messages
-
-| Command        | Description                         |
-| :------------- | :---------------------------------- |
-| # show logging | syslog status, local logging buffer |
+| Command                                   | Description                                                                                     |
+| :---------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| (config)# logging console informational   | sets the syslog level for the console (informational in this case)                              |
+| (config)# logging buffered 8192 <level>   | sets the RAM logging buffer, needed to see logs with 'show logging'. Level is number or keyword |
+| (config)# logging monitor warning         | sets the syslog level for the vty lines (needs 'terminal monitor' in each vty session to work)  |
+| # terminal monitor                        | when connected via vty, shows logs. Run in PRIVILEDGE EXEC mode                                 |
+| # logging [host] 10.20.30.40              | Log to this syslog server (name or ip), [host] keyword optional                                 |
+| # logging trap informational              | Only log messages with min. informational sev.                                                  |
+|                                           | .                                                                                               |
+| service sequence-number                   | sets sequence numbers for logs                                                                  |
+| [no] service timestamps log datetime msec | sets timestamps with date and time                                                              |
+| [no] service timestamps log uptime msec   | sets timestamps with uptime                                                                     |
+|                                           | .                                                                                               |
+| # show logging                            | syslog status, local logging buffer                                                             |
+| # clear logging                           | clears the ram logs                                                                             |
 
 ### SNMP
 
@@ -697,20 +681,35 @@ service time stamps log [datetime, log] | Needed for date and time in syslog mes
 
 ### CDP - Cisco Discovery Protocol
 
-| Command                        | Description                                                     |
-| :----------------------------- | :-------------------------------------------------------------- |
-| # [no] cdp run                 | Enables cdp globaly and on all interfaces (default)             |
-| # (config-if)# [no] cdp enable | Enable cdp on an interface                                      |
-| # show cdp neighbors [detail]  | List connected cisco devices (name, local/remote port, [ip] ..) |
-| # show cdp entry \*            |                                                                 |
+| Command                        | Description                                                             |
+| :----------------------------- | :---------------------------------------------------------------------- |
+| # show cdp                     | shows cdp config info                                                   |
+| # show cdp traffic             | shows cdp traffic stats                                                 |
+| # show cdp interface (int)     | shows cdp info about how many int are cdp enabled                       |
+| # show cdp neighbors           | List connected cisco devices (name, local/remote port, [ip] ..)         |
+| # show cdp neighbors detail    | List complete info. Has native vlan #, duplex, ios version of neighbour |
+| # show cdp entry Sw2           | Shows cdp details about only one device                                 |
+|                                | .                                                                       |
+| # (config)# [no] cdp run       | Enables cdp globaly and on all interfaces (default)                     |
+| # (config-if)# [no] cdp enable | Enable cdp on an interface                                              |
+| # (config)# cdp timer 99       | configure cdp timer in seconds. default 180 seconds                     |
+| # (config)# cdp holdtime 99    | configure cdp holdtime in seconds                                       |
 
 ### LLDP - Link Layer Discovery Protocol
 
-| Command                         | Description                                  |
-| :------------------------------ | :------------------------------------------- |
-| # [no] lldp run                 | Enables lldp globaly and on all interfaces   |
-| (config-if)# [no] lldp transmit | Enable lldp packet transmission on interface |
-| (config-if)# [no] lddp receive  | Enable lldp packet reception on interace     |
+| Command                         | Description                                                             |
+| :------------------------------ | :---------------------------------------------------------------------- |
+| # show lldp                     | shows if lldp enabled and timers                                        |
+| # show lldp traffic             | shows stats on frames sent                                              |
+| # show lldp int [int]           | shows if transmit/receive enabled on int                                |
+| # show lldp neighbor            | shows neighbors hostname, the port they are connected on and capability |
+| # show lldp neighbor detail     | show detailed info on neighbor                                          |
+|                                 | .                                                                       |
+| (config)# [no] lldp run         | Enables lldp globaly and on all interfaces                              |
+| (config-if)# [no] lldp transmit | Enable lldp packet transmission on interface                            |
+| (config-if)# [no] lddp receive  | Enable lldp packet reception on interace                                |
+| (config)# lldp timer 33         | configures lldp timer in seconds                                        |
+| (config)# lldp holdtime 33      | configures lldp holdtime timer in seconds                               |
 
 ## PPP
 
