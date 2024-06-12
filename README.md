@@ -43,6 +43,7 @@
     - [Troubleshooting SLAs](#troubleshooting-slas)
   - [Device Management](#device-management)
     - [Firmware Management](#firmware-management)
+    - [FTP / TFTP](#ftp--tftp)
     - [License Management](#license-management)
     - [Reset Password](#reset-password)
     - [Telnet / Console](#telnet--console)
@@ -69,9 +70,8 @@
   - [EIGRP](#eigrp)
     - [EIGRP with ipv6](#eigrp-with-ipv6)
   - [OSPF](#ospf)
-    - [Router Types](#router-types)
-    - [OSPF with ipv6 (OSPFv3)](#ospf-with-ipv6-ospfv3)
     - [Troubleshooting OSPF](#troubleshooting-ospf)
+    - [OSPF with ipv6 (OSPFv3)](#ospf-with-ipv6-ospfv3)
   - [BGP](#bgp)
   - [CLI](#cli)
     - [Default Behavior](#default-behavior)
@@ -428,7 +428,6 @@ Default mask for standard ACLs: 0.0.0.0
 | # clear ip nat translation {ip, \*} | Clear dynamic translations. Doesn't mess with SNAT!                             |
 | # debug ip nat [detailed]           |                                                                                 |
 
-
 ## DHCP Server
 
 | Command                                                  | Description                                            |
@@ -487,35 +486,44 @@ Default mask for standard ACLs: 0.0.0.0
 
 ## Device Management
 
-| Command                               | Description                                                                  |
-| :------------------------------------ | :--------------------------------------------------------------------------- |
-| (config)# hostname R1                 | Set hostname to R1                                                           |
-| (config)# enable password <password>  | Set enable passwort.                                                         |
-| (config)# enable secret <password>    | Same, but with hashing.                                                      |
-| (config)# service password-encryption | Very weak encryption of passwords passwords.                                 |
-| # copy flash0: tftp:                  | Copy something from flash to tftp. Wizard asks for details. Works both ways. |
-| # write                               | # copy running-config startup-config                                         |
-| # write erase                         | # erase startup-config                                                       |
-| # reload                              | restart the device and load the startup-config                               |
-| # copy running-config tftp:           | copy running-config to an tftp server. (interactive)                         |
-| # copy <any> running-config           | Merge source config into the running config.                                 |
-| # setup                               | initial configuration dialog                                                 |
-| # show version                        | ios, bootloader and hardware infos, uptime, configuration register           |
-| # show {running,startup}-config       |                                                                              |
+| Command                               | Description                                                        |
+| :------------------------------------ | :----------------------------------------------------------------- |
+| (config)# hostname R1                 | Set hostname to R1                                                 |
+| (config)# enable password <password>  | Set enable passwort.                                               |
+| (config)# enable secret <password>    | Same, but with hashing.                                            |
+| (config)# service password-encryption | Very weak encryption of passwords passwords.                       |
+| # write                               | # copy running-config startup-config                               |
+| # write erase                         | # erase startup-config                                             |
+| # reload                              | restart the device and load the startup-config                     |
+| # copy running-config tftp:           | copy running-config to an tftp server. (interactive)               |
+| # copy <any> running-config           | Merge source config into the running config.                       |
+| # setup                               | initial configuration dialog                                       |
+| # show version                        | ios, bootloader and hardware infos, uptime, configuration register |
+| # show {running,startup}-config       |                                                                    |
 
 ### Firmware Management
 
 Note: flash: is the main flash memory on all iOS devices
 
-| Command                                               | Description                                                   |
-| :---------------------------------------------------- | :------------------------------------------------------------ |
-| (config)# boot system flash:filename.bin              | Boot filename.bin from flash memory.                          |
-| (config)# boot system tftp://10.20.30.40/filename.bin | Boot filename.bin from tftp.                                  |
-| (config)# boot system rom                             | Boot ROM monitor as a backup.                                 |
-| (config)# config-register 0x2342                      | Set the 16bit Configuration Register value used after reboot. |
-|                                                       |                                                               |
-| # show file systems                                   | Lists available file systems                                  |
-| # show flash0:                                        | List fs content and free space.                               |
+| Command                                  | Description                                                          |
+| :--------------------------------------- | :------------------------------------------------------------------- |
+| (config)# boot system flash:filename.bin | Boot filename.bin from flash memory.                                 |
+|                                          |                                                                      |
+| # show file systems                      | Lists available file systems and space; nvram, disk, opaque, network |
+| # show version                           | shows firmware version used                                          |
+| # show flash0:                           | List fs content and free space.                                      |
+| # dir flash0:                            | List fs content, free space and total space                          |
+
+### FTP / TFTP
+
+| Command                                                     | Description                                                          |
+| :---------------------------------------------------------- | :------------------------------------------------------------------- |
+| # copy tftp: flash0:                                        | Copy from tftp server to flash0 mememory. Wizard asks more questions |
+| # copy flash0: tftp:                                        | Copy something from flash to tftp, Wizard asks more questions        |
+| # copy ftp://user1:pass1@192.168.2.2/sourcefile.bin flash0: | FTP Method 1, copy from ftp server to flash0:                        |
+| (config)# ip ftp username user1                             | Method 2: sets up ftp user to connect later                          |
+| (config)# ip ftp password pass1                             | Method 2: sets up ftp password to connect later                      |
+| # copy ftp: flash0:                                         | FTP Method 2, copy from ftp server to flash0: . with wizard          |
 
 ### License Management
 
@@ -862,30 +870,34 @@ Note: The network command enables any interface with an ip in that net to send a
 
 ## OSPF
 
-cost = reference bandwidth / interface bandwidth
+| Command                                                 | Description                                                                                             |
+| :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------ |
+| (config)# router ospf 1                                 | 1 is the pid, not the area.                                                                             |
+| (config-router)# router-id 1.2.3.4                      | Defaults to highest IPv4 on lo, then other ifs.                                                         |
+| (config-router)# network 10.20.30.0 0.0.0.255 area 0    | enable interfaces for ospf with matching IPs                                                            |
+| (config-router)# passive-interface default              | Mark all ifs passive by default.                                                                        |
+| (config-router)# (no) passive-interface g1/1            | makes int non-passive after default has been applied                                                    |
+| (config-router)# passive-interface g1/1                 | Stop in- and egress ospf hello packets.                                                                 |
+| (config-router)# default-information originate (always) | Advertise default gateway to the the AS                                                                 |
+| (config-router)# auto-cost reference-bandwidth 1000000  | Change reference bandwidth speed, in MB                                                                 |
+| (config-router)# maximum-paths 2                        | changes the load balancing of equal metric routes that will be added to the routing table. Default is 4 |
+| (config-router)# distance 85                            | changes the administrative distance of ospf to be chosen before EIGRP                                   |
+| (config-if)# ip ospf cost 23                            | Overwrite interface cost to 23                                                                          |
+| (config-if)# ip ospf priority 2                         | changes the priority (to become DR/BDR/etc...). Default is 1                                            |
+| (config-if)# ip ospf network point-to-point             | changes the ospf network type (broadcast, point-to-point, non-broadcast)                                |
+| (config-if)# bandwidth 100000                           | Change interface bandwidth, in Kbits                                                                    |
+| # clear ip ospf process                                 | restarts the ospf process. forces it choose router id again                                             |
 
-The default reference bandwith is 100Mbps. Everything faster has a cost of 1.
+### Troubleshooting OSPF
 
-| Command                                                        | Description                                     |
-| :------------------------------------------------------------- | :---------------------------------------------- |
-| (config)# router ospf 1                                        | 1 is the pid, not the area.                     |
-| (config-router)# router-id 1.2.3.4                             | Defaults to highest IPv4 on lo, then other ifs. |
-| (config-router)# network 10.20.30.0 0.0.0.255 area 0           | enable interfaces for ospf with matching IPs    |
-| (config-router)# (no) passive-interface g1/1                   | Stop in- and egress ospf hello packets.         |
-| (config-router)# passive-interface default                     | Mark all ifs passive by default.                |
-| (config-router)# default-information originate (always)        | Advertise default routes into a normal area     |
-| (config-router)# auto-cost reference-bandwidth <refbw in Mb/s> | Change reference bandwidth speed                |
-| (config-if)# ip ospf cost 23                                   | Overwrite interface cost to 23                  |
-| (config-if)# bandwidth <bw in kb/s>                            | Change interface bandwidth                      |
-
-### Router Types
-
-| Term                                     | Definition                                                                       |
-| :--------------------------------------- | :------------------------------------------------------------------------------- |
-| Internal Router                          | All OSPF interfaces in one area                                                  |
-| Backbone Router                          | Has one or more OSPF interfaces in the backbone                                  |
-| Area Boundary Router (ABR)               | Has at least one interface in the backbone area and at least one in another area |
-| Autonomous System Boundary Router (ASBR) | Injects routes into OSPF via redistribution from other routing protocols         |
+| Command                  | Description                                                                                              |
+| :----------------------- | :------------------------------------------------------------------------------------------------------- |
+| # show ip protocols      | shows if ospf process running, router-id, maximum paths, passive interfaces                              |
+| # show ip ospf           | reference bandwidth, router id, networks, interface per area                                             |
+| # show ip ospf neighbor  | neighbor IDs, IPs, timer, state                                                                          |
+| # show ip ospf int brief | shows int that are enabled + area, state, cost of int                                                    |
+| # show ip ospf int g1/1  | ospf attach method (via network/int enable), hello timer count, dr/bdr/drother, if int is passive or not |
+| # show ip database       | shows LSDB. separated by types of LSAs. Router LSA, Network LSA, Summary LSA, Type 5 AS external         |
 
 ### OSPF with ipv6 (OSPFv3)
 
@@ -895,22 +907,6 @@ The default reference bandwith is 100Mbps. Everything faster has a cost of 1.
 | (config)# ipv6 router ospf <pid>            |                                                    |
 | (config-router)# router-id <ipv4>           | Required if we don't have any v4 addrs configured. |
 | (config-if)# ipv6 ospf <pid> area <area id> | Required for OSPFv3.                               |
-
-The networks command does not exist, non mentioned commands are the same.
-
-### Troubleshooting OSPF
-
-| Command                            | Description                                                  |
-| :--------------------------------- | :----------------------------------------------------------- |
-| # show run &#124; sect ospf        |                                                              |
-| # show ip(v6) protocols            | Other protocols with lower AD?                               |
-| # show ipv6 ospf                   | reference bandwidth, router id, networks, interface per area |
-| # show ip(v6) ospf neighbor        | neighbor IDs, IPs and via interface.                         |
-| # show ip(v6) ospf neighbor detail | dr, bdr, timers, ...                                         |
-| # show interface brief             | admin down? link?                                            |
-| # show ip(v6) ospf interface brief | ospf enabled interfaces                                      |
-| # show ip(v6) ospf interface g1/1  | ospf related infos for g1/1, passive?                        |
-| # show ip(v6) route (ospf)         | ospf routes are marked O, show route ad and cost             |
 
 ## BGP
 
