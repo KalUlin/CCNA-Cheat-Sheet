@@ -7,6 +7,9 @@
   - [Configure basic Networking](#configure-basic-networking)
     - [Troubleshoot basic Networking](#troubleshoot-basic-networking)
     - [Troubleshoot networks with SPAN](#troubleshoot-networks-with-span)
+  - [IPv6](#ipv6)
+    - [Configure IPv6](#configure-ipv6)
+    - [Troubleshoot IPv6](#troubleshoot-ipv6)
   - [Port Security](#port-security)
     - [Troubleshooting Port Security](#troubleshooting-port-security)
   - [Configure vlans](#configure-vlans)
@@ -135,6 +138,32 @@
 | (config)# monitor session 23 source interface g1/1 {rx,tx,both} | Define SPAN #23 input as g1/1  |
 | (config)# monitor session 23 destination interface g1/2         | Define SPAN #23 output as g1/2 |
 | # show monitor                                                  | Show all configured SPANs      |
+
+## IPv6
+
+### Configure IPv6
+
+| Command                                           | Description                                                                          |
+| :------------------------------------------------ | :----------------------------------------------------------------------------------- |
+| (config)# ipv6 unicast-routing                    | enable ipv6 routing                                                                  |
+| (config-if)# ipv6 address 2001::1/64              | configure full IPv6 address                                                          |
+| (config-if)# ipv6 address 2001::1/64 anycast      | configures anycast address on interface                                              |
+| (config-if)# ipv6 address 2001:1:2:3/64 eui-64    | configure IPv6 address from global prefix and uses eui-64 to setup the Interface ID  |
+| (config-if)# ipv6 enable                          | enables ipv6 on interface (doesn't enable ipv6 routing)                              |
+| (config-if)# ipv6 address autoconfig              | configures ipv6 address with SLAAC                                                   |
+| (config-if)# ipv6 address dhcp                    | configures ipv6 address with DHCPv6                                                  |
+| (config)# ipv6 route 2001:1:2:3::/64 g0/0         | configures Directly Attached ipv6 route, for serial interfaces only                  |
+| (config)# ipv6 route 2001:1:2:3::/64 2001::6      | configures Recursive ipv6 route, specifies the next hop                              |
+| (config)# ipv6 route 2001:1:2:3::/64 g0/0 FE80::2 | configures Fully Specified ipv6 route, specifies the outgoing interface and next hop |
+
+### Troubleshoot IPv6
+
+| Command                     | Description                                                                     |
+| :-------------------------- | :------------------------------------------------------------------------------ |
+| # show ipv6 interface brief | shows ipv6 addresses configured on all interfaces. Doesn't show prefix lenght   |
+| # show ipv6 interface g0/0  | shows ipv6 addresses on interface with prefix lenght. Shows multicast addresses |
+| # show ipv6 neighbor        | shows ipv6 'arp' table                                                          |
+| # show ipv6 route           | shows ipv6 routing table                                                        |
 
 ## Port Security
 
